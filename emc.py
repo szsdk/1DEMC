@@ -96,16 +96,20 @@ else:
     config.set("make_data", "intens", "(np.sin(x)**2)*(1+np.cos(x * 7.3))")
     # config.set("make_data", "intens", "(np.sin(0.5*x)**2)")
 
-main_folder = os.path.dirname(os.path.abspath(args.config))
+if config.has_option("output", "main_folder"):
+    main_folder = config["output" ]["main_folder"]
+else:
+    main_folder = os.path.dirname(os.path.abspath(args.config))
+
 if args.logfile:
     logging.basicConfig(
-        filename="%s/run.log" % main_folder,
+        filename=f"{main_folder}/run.log",
         format=FORMAT,level=logging.DEBUG)
 else:
     logging.basicConfig(
             format=FORMAT,level=logging.DEBUG)
 
-print(main_folder)
+print(f"main_folder: {main_folder}")
 if not config.has_section("output"):
     config.add_section("output")
 if config.has_option("output", "inten_folder"):
@@ -123,6 +127,7 @@ else:
 for i in [inten_folder, prob_folder]:
     if not os.path.isdir(i):
         os.makedirs(i)
+        logging.info("make new folder: %s", i)
     # print(inten_folder)
 # with open(args.config, "w") as cfgfile:
     # config.write(cfgfile)
