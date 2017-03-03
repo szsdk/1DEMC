@@ -1,9 +1,9 @@
+import re
 import numpy as np
 import matplotlib.pylab as plt
 import itertools
 from scipy.misc import factorial
 import warnings
-warnings.filterwarnings('error')
 import logging
 FORMAT = '%(asctime)s %(levelname)s: %(message)s'
 
@@ -20,22 +20,20 @@ def EMC(recon_in, patterns, fluence):
     recons = np.log(recons)
     prob = np.dot(patterns, recons.T)
     
-    # prob = np.zeros([N,S])
-    # for n, s in itertools.product(range(N), range(S)):
-        # prob[n,s] = np.product(
-                # np.power(recons[s], patterns[n]) 
-                # )
     with np.errstate(divide='raise'):
-        for n in range(N):
-            prob[n] = np.exp(prob[n] - max(prob[n]))
-            prob[n] = prob[n] / np.sum(prob[n])
-    new_patterns = np.zeros([N,S])
+        prob = np.exp(prob - np.max(prob, axis=1).reshape(N,1))
+        prob /= np.sum(prob, axis=1).reshape(N,1)
+
+    new_patterns = np.zeros([S,S])
     probn = np.sum(prob, axis=0)
 
-    for n, s in itertools.product(range(N),range(S)):
-        # if True:
-        if prob[n,s]/probn[s]>1e-10:
-            new_patterns[n] += np.roll(patterns[n], s)*prob[n,s]/probn[s]
+    for s in range(S):
+        new_patterns[s] = np.sum(patterns * prob[:,s].reshape(N,1), axis=0)/ np.sum(prob[:,s])
+        new_patterns[s] = np.roll(new_patterns[s], s)
+
+    # for n, s in itertools.product(range(N),range(S)):
+        # if prob[n,s]/probn[s]>1e-10:
+            # new_patterns[n] += np.roll(patterns[n], s)*prob[n,s]/probn[s]
     new_recon = np.average(new_patterns, axis=0)
     new_recon = new_recon / np.sum(new_recon) * fluence
     return new_recon, prob
@@ -74,6 +72,7 @@ parser.add_argument("--show", help="plot iterations", action="store_true")
 parser.add_argument("-r","--recover", help="recover from data", action="store_true")
 parser.add_argument("--logfile", help="output log to run.log", action="store_true")
 parser.add_argument("-i","--iteration", help="the iteration number", type=int, default=10)
+parser.add_argument("--savestep", help="save data every n step", type=int, default=1)
 parser.add_argument("--seed", help="the iteration number", type=int)
 args = parser.parse_args()
 # if not args.config:
@@ -150,10 +149,11 @@ else:
 start = -1
 if args.recover:
     try:
-        start = max([int(i[-7:-4]) for i in glob.glob(inten_folder + "/intens*")])
-        recon = np.load(inten_folder + "/intens_%03d.npy" % start)
+        prog = re.compile(r"(\d+)\.npy$")
+        start_tmp = max([int(prog.search(i).group(1)) for i in glob.glob(inten_folder + "/intens*")])
+        recon = np.load(inten_folder + "/intens_%07d.npy" % start_tmp)
+        start = start_tmp + 1
         logging.info("start from %d", start)
-        start += 1
     except:
         pass
 if args.seed:
@@ -169,16 +169,29 @@ if start <0 or not args.recover:
     logging.info("Start randomly")
 
 
+def save_strategy(g):
+    def ss(recon):
+        i = start
+        for j in g(recon):
+            if (i-start+1) % args.savestep == 0:
+                np.save(inten_folder + "/intens_%07d" % i, j[0])
+                np.save(prob_folder + "/prob_%07d" % i, j[1])
+            i += 1
+            yield j
+    return ss
+
+
+@save_strategy
 def get_iter(r):
     recon = r.copy()
     fluence = np.average(np.sum(patterns, axis=1))
     logging.info("Size: %d, Number of patterns: %d, Total intensities: %f, Photons per patterns: %f", S, N, flu, np.mean(np.sum(patterns, axis=1)))
-    i = 0
+    i = start
     while True:
-        i += 1
         recon_next, prob = EMC(recon, patterns, fluence)
-        logging.info("recon change: %.3E", np.mean((recon_next-recon)**2))
+        logging.info("%07dth iter, recon change: %.3E", i, np.mean((recon_next-recon)**2))
         recon = recon_next
+        i += 1
         yield recon, prob
 
 import matplotlib
@@ -263,14 +276,6 @@ if args.show:
     plt.show()
 else:
     for i, (recon, prob) in enumerate(itertools.islice(get_iter(recon), args.iteration), start=start):
-        np.save(inten_folder + "/intens_%03d" % i, recon)
-        np.save(prob_folder + "/prob_%03d" % i, prob)
-
-# fluence = np.average(np.sum(patterns, axis=1))
-# logging.info("Size: %d, Number of patterns: %d, Total intensities: %f", S, N, flu)
-# for i in range(start, start+args.iteration):
-    # recon_next, prob = EMC(recon, patterns, fluence)
-    # logging.info("Complete %03dth iter, recon change: %.3E", i, np.mean((recon_next-recon)**2))
-    # recon = recon_next
-    # np.save(inten_folder + "/intens_%03d" % i, recon)
-    # np.save(prob_folder + "/prob_%03d" % i, prob)
+        pass
+    np.save(inten_folder + "/intens_%07d" % i, recon)
+    np.save(prob_folder + "/prob_%07d" % i, prob)

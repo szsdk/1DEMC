@@ -1,3 +1,4 @@
 recon_*
 *.npy
 *~
+*.swp
