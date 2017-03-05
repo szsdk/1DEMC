@@ -31,9 +31,6 @@ def EMC(recon_in, patterns, fluence):
         new_patterns[s] = np.sum(patterns * prob[:,s].reshape(N,1), axis=0)/ np.sum(prob[:,s])
         new_patterns[s] = np.roll(new_patterns[s], s)
 
-    # for n, s in itertools.product(range(N),range(S)):
-        # if prob[n,s]/probn[s]>1e-10:
-            # new_patterns[n] += np.roll(patterns[n], s)*prob[n,s]/probn[s]
     new_recon = np.average(new_patterns, axis=0)
     new_recon = new_recon / np.sum(new_recon) * fluence
     return new_recon, prob
@@ -67,9 +64,10 @@ import glob
 import os
 parser = argparse.ArgumentParser()
 parser.add_argument("-c","--config", help="the config file")
-parser.add_argument("-s","--simulate", help="force to simulate", action="store_true")
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-s","--simulate", help="force to simulate", action="store_true")
+group.add_argument("-r","--recover", help="recover from data", action="store_true")
 parser.add_argument("--show", help="plot iterations", action="store_true")
-parser.add_argument("-r","--recover", help="recover from data", action="store_true")
 parser.add_argument("--logfile", help="output log to run.log", action="store_true")
 parser.add_argument("-i","--iteration", help="the iteration number", type=int, default=10)
 parser.add_argument("--savestep", help="save data every n step", type=int, default=1)
