@@ -12,7 +12,7 @@ from emc_tool import *
 import argparse
 import configparser
 import glob
-import os
+import os, shutil
 parser = argparse.ArgumentParser()
 parser.add_argument("-c","--config", help="the config file")
 group = parser.add_mutually_exclusive_group()
@@ -27,7 +27,7 @@ parser.add_argument("--savestep", help="save data every n step", type=int, defau
 parser.add_argument("--seed", help="the iteration number", type=int)
 args = parser.parse_args()
 # if not args.config:
-config = configparser.ConfigParser()
+config = configparser.ConfigParser(interpolation = configparser.ExtendedInterpolation())
 
 if args.config:
     config.read(args.config)
@@ -51,15 +51,8 @@ if config.has_option("output", "main_folder"):
 else:
     main_folder = os.path.dirname(os.path.abspath(args.config))
 
-if args.logfile:
-    logging.basicConfig(
-        filename=f"{main_folder}/run.log",
-        format=FORMAT,level=logging.DEBUG)
-else:
-    logging.basicConfig(
-            format=FORMAT,level=logging.DEBUG)
-
 print(f"main_folder: {main_folder}")
+
 if not config.has_section("output"):
     config.add_section("output")
 if config.has_option("output", "inten_folder"):
@@ -77,10 +70,22 @@ else:
 for i in [inten_folder, prob_folder]:
     if not os.path.isdir(i):
         os.makedirs(i)
-        logging.info("make new folder: %s", i)
     # print(inten_folder)
 # with open(args.config, "w") as cfgfile:
     # config.write(cfgfile)
+
+try:
+    shutil.copy(args.config, f"{main_folder}/%s" % os.path.basename(args.config))
+except:
+    pass
+
+if args.logfile:
+    logging.basicConfig(
+        filename=f"{main_folder}/run.log",
+        format=FORMAT,level=logging.DEBUG)
+else:
+    logging.basicConfig(
+            format=FORMAT,level=logging.DEBUG)
 
 if not os.path.exists(main_folder + "/intensities.npy") or \
    not os.path.exists(main_folder + "/true_oriens.npy") or \
