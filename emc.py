@@ -97,7 +97,7 @@ if not os.path.exists(main_folder + "/intensities.npy") or \
     np.save(main_folder + "/true_oriens", true_oriens)
     np.save(main_folder + "/patterns", patterns)
 else:
-    logging.info("read patterns from file")
+    logging.info("read patterns from file in %s", main_folder)
     true_intens = np.load(main_folder + "/intensities.npy")
     true_oriens = np.load(main_folder + "/true_oriens.npy")
     patterns = np.load(main_folder + "/patterns.npy")

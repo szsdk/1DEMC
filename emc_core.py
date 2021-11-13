@@ -2,7 +2,11 @@ import numpy as np
 import os
 import logging
 
-def EMC(recon_in, patterns, fluence):
+max_orien = lambda p: np.argmax(p, axis=1)
+
+def EMC(recon_in, patterns, fluence=None):
+    if not fluence:
+        fluence = np.average(np.sum(patterns, axis=1))
     recon = recon_in.copy()
     recon[recon==0] = 1e-100
     S = recon.shape[0]
@@ -12,7 +16,7 @@ def EMC(recon_in, patterns, fluence):
         recons[i] = np.roll(recon, -i)
 
     recons = np.log(recons)
-    prob = np.dot(patterns, recons.T)
+    prob = patterns @ recons.T
     
     with np.errstate(divide='raise'):
         prob = np.exp(prob - np.max(prob, axis=1).reshape(N,1))
@@ -32,15 +36,21 @@ def EMC(recon_in, patterns, fluence):
 def simulate(N, S, flu, intens):
     # true_intens = (np.sin(x)**2)*(1+np.cos(x * 7.4)) * flu / S
     # x = np.linspace(0, 2*np.pi, S)
-    if os.path.isfile(intens):
-        true_intens = np.load(intens)
-        if not true_intens.shape[0] ==  S:
-            raise Exception(" The length of intens file should match S.")
-        logging.info("read intens from file %s", intens)
+    if type(intens)==str:
+        if os.path.isfile(intens):
+            true_intens = np.load(intens)
+            logging.info("read intens from file %s", intens)
+        else:
+            x = np.linspace(0, 2*np.pi, S)
+            true_intens = eval(intens)
+            logging.info("generate the intens by %s", intens)
+    elif type(intens)==np.ndarray:
+        true_intens = intens.copy()
     else:
-        x = np.linspace(0, 2*np.pi, S)
-        true_intens = eval(intens)
-        logging.info("generate the intens by %s", intens)
+        raise Exception("I do not know what intens is.")
+    if not true_intens.shape[0] ==  S:
+        raise Exception(" The length of intens file should match S.")
+
     true_intens = true_intens / np.sum(true_intens) * flu / S
     patterns = np.zeros([N,S])
     for i in range(S):
